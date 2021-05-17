@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Calculator</title>
+    <link rel="stylesheet" href="https://unpkg.com/buefy@0.7.3/dist/buefy.min.css">
+    <style>
+        @media print {
+            .no-print { display: none; }
+
+        }
+
+        @media screen {
+            .for-print { display: none; }
+        }
+    </style>
+</head>
+<body>
+<section class="section">
+    <div class="container">
+        <div class="card no-print">
+            <div class="card-content">
+                <h1 class="title">Calculator</h1>
+                <h2 class="subtitle">
+                    A simple <strong>credit calculator</strong> (works with annuity formula)
+                </h2>
+            </div>
+        </div>
+        <div id="app">
+            <div ref="forprint">
+            <div class="card">
+            <div class="card-content">
+            <div class="columns">
+                <div class="column">
+                    <div class="columns">
+                <div class="column">
+                    <b-field :label="'Tovar narxi (' +currency.Ccy+ ')' ">
+                        <b-input type="number" v-model="price_val" min="0" :max="max_sum"></b-input>
+                    </b-field>
+                </div>
+                <div class="column is-one-fifth">
+                    <b-field :label="'='+currency.Rate" class="no-print">
+                        <b-select :placeholder="currency.Ccy" v-model="currency_type">
+                            <option v-for="ct in currency_data" :value="ct.id" :key="ct.id">{{ ct.Ccy }}</option>
+                        </b-select>
+                    </b-field>
+                    <strong class="for-print">{{ currency.Rate }}<br/></strong>
+                    <span class="for-print">{{ currency.Ccy }}</span>
+                </div>
+                <div class="column">
+                    <b-field label="Tovar narxi (UZS)" >
+                        <b-input disabled :value="price"></b-input>
+                    </b-field>
+                </div>
+            </div>
+            <div class="columns">
+                <div class="column">
+                    <b-field label="Oldindan to'lov (%)">
+                        <b-input type="number" min="0" max="100" v-model="first_fee_percent"
+                                 :disabled="first_fee_type_id == 2"></b-input>
+                    </b-field>
+                </div>
+                <div class="column is-one-fifth">
+                    <b-field label="-" class="no-print">
+                        <b-select :placeholder="first_fee_type.name" v-model="first_fee_type_id">
+                            <option v-for="ft in first_fee_types" :value="ft.id" :key="ft.id">{{ ft.name }}</option>
+                        </b-select>
+                    </b-field>
+                    <strong class="for-print">{{ first_fee_type.id==1 ? '<'+first_fee_type.name : first_fee_type.name+'>' }}</strong>
+                </div>
+                <div class="column">
+                    <b-field label="Oldindan to'lov (sum)">
+                        <b-input type="number" min="0" :max="max_sum" v-model="first_fee_sum"
+                                 :disabled="first_fee_type_id == 1"></b-input>
+                    </b-field>
+                </div>
+            </div>
+                    <div class="columns">
+                <div class="column">
+                    <b-field label="Muddat (oylarda)">
+                        <b-input v-model="period"></b-input>
+                    </b-field>
+                </div>
+                <div class="column">
+                    <b-field label="Marja">
+                        <b-input v-model="margin"></b-input>
+                    </b-field>
+                </div>
+            </div>
+                </div>
+                <div class="column">
+                    <b-table
+                            :data="info_table"
+                            :bordered="true"
+                            :striped="true"
+                            :narrowed="true"
+                            :hoverable="true"
+                            :mobile-cards="true">
+                        <template slot-scope="props">
+                            <b-table-column field="name" label="-">
+                                {{ props.row.name }}
+                            </b-table-column>
+                            <b-table-column field="value" label=".">
+                                {{ props.row.value }}
+                            </b-table-column>
+                        </template>
+                        <template slot="empty">
+                            <section class="section">
+                                <div class="content has-text-grey has-text-centered">
+                                    <p>Nothing here.</p>
+                                </div>
+                            </section>
+                        </template>
+                    </b-table>
+                </div>
+            </div>
+                <div class="columns">
+                    <div class="column">
+                        <b-table
+                                :data="monthly_table"
+                                :bordered="true"
+                                :striped="true"
+                                :narrowed="true"
+                                :hoverable="true"
+                                :mobile-cards="true">
+                            <template slot-scope="props">
+                                <b-table-column field="id" label="Month" width="40" numeric>
+                                    {{ props.row.id }}
+                                </b-table-column>
+                                <b-table-column field="payment" label="Payment">
+                                    {{ props.row.payment | formatPrice }}
+                                </b-table-column>
+                                <b-table-column field="balance_b" label="Loan balance before">
+                                    {{ props.row.balance_b | formatPrice }}
+                                </b-table-column>
+                                <b-table-column field="balance_a" label="Loan balance after">
+                                    {{ props.row.balance_a | formatPrice }}
+                                </b-table-column>
+                                <b-table-column field="summary" label="Payed summary">
+                                    {{ props.row.summary | formatPrice }}
+                                </b-table-column>
+                                <b-table-column field="date" label="Date" centered>
+                                    <strong><span class="tag is-success">
+                                        &#160;{{ props.row.date }}&#160;
+                                    </span></strong>
+                                </b-table-column>
+                            </template>
+                            <template slot="empty">
+                                <section class="section">
+                                    <div class="content has-text-grey has-text-centered">
+                                        <p>Nothing here.</p>
+                                    </div>
+                                </section>
+                            </template>
+                        </b-table>
+                    </div>
+                </div>
+            </div>
+            </div>
+            </div>
+            <div class="card no-print">
+                <div class="card-content">
+                    <a class="button" @click="downloadAsPng">Export as PNG</a>
+                    <a class="button" @click="downloadAsPdf">Export as PDF</a>
+                </div>
+            </div>
+        </div>
+    </div>
+</section>
+
+
+<script type="text/javascript" src="https://cdn.jsdelivr.net/npm/vue/dist/vue.js"></script>
+<script type="text/javascript" src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.22.2/moment.min.js"></script>
+<script type="text/javascript" src="https://unpkg.com/axios/dist/axios.min.js"></script>
+<script type="text/javascript" src="https://unpkg.com/vue-axios@2.1.3/dist/vue-axios.min.js"></script>
+<script type="text/javascript" src="https://unpkg.com/buefy@0.6.6/lib/index.js"></script>
+<script type="text/javascript">
+    Vue.use(Buefy.default);
+    var app = new Vue({
+        el: '#app',
+        data: {
+            max_sum: 100000000000,
+            currency_type: 0,
+            currency_data: [{"id":0,"Code":"000","Ccy":"UZS","CcyNm_RU":"Узбекский сум","CcyNm_UZ":"O'zbek so'mi","CcyNm_UZC":"Ўзбек сўми","CcyNm_EN":"Uzbek soum","Nominal":"1","Rate":"1","Diff":"1","Date":"16.08.2019"}],
+            price_val: 1000,
+            first_fee_types: [{id: 1, name: 'Foiz'}, {id: 2, name: 'Sum'}],
+            first_fee_type_id: 1,
+            first_fee_percent: 30,
+            first_fee_sum: 0,
+            period: 6,
+            margin: 52,
+        },
+        computed: {
+            price(){
+                return this.price_val > 0 ? this.price_val * parseFloat(this.currency.Rate) : 0;
+            },
+            first_fee_type(){
+                return this.first_fee_types.filter(x => x.id == this.first_fee_type_id)[0];
+            },
+            uz_currency(){
+                return this.currency_data.filter(x => x.id == 0)[0];
+            },
+            currency(){
+                return this.currency_data.filter(x => x.id == this.currency_type)[0];
+            },
+            first_fee(){
+                return parseInt(this.first_fee_type_id === 1 ? (this.price * this.first_fee_percent / 100) : this.first_fee_sum)
+            },
+            credit_amount() {
+                return this.price - this.first_fee;
+            },
+            credit_amount_wm() {
+                return this.amount_for_month * this.period;
+            },
+            amount_for_month() {
+                return this.credit_amount*this.ratio;
+            },
+            mpo() {
+                return this.mm + 1;
+            },
+            mm() {
+                return this.margin / 100 / 12;
+            },
+            ratio(){
+                return (Math.pow(this.mpo,this.period)*this.mm)/(Math.pow(this.mpo,this.period)-1)
+            },
+            info_table() {
+                return [
+                    {value: this.formatPrice(this.price_val), name: "Narxi (" + this.currency.CcyNm_UZ + ")"},
+                    {value: this.formatPrice(this.price), name: "Narxi (" + this.uz_currency.CcyNm_UZ + ")"},
+                    {value: this.formatPrice(this.first_fee), name: "Oldindan to'lov (UZS)"},
+                    {value: this.period, name: "Muddat"},
+                    {value: this.margin, name: "Marja"},
+                    {value: this.formatPrice(this.credit_amount), name: "Kredit qiymati (UZS)"},
+                    {value: this.formatPrice(this.amount_for_month), name: "Oylik kredit to'lovi (UZS)"},
+                    {value: this.formatPrice(this.credit_amount_wm), name: "Jami kredit to'lovi (UZS)"},
+                    {value: this.formatPrice(this.credit_amount_wm + this.first_fee), name: "Jami to'lovlar (UZS)"},
+                    {
+                        value: this.formatPrice(this.credit_amount_wm - this.credit_amount),
+                        name: "Added amount in (UZS)"
+                    },
+                ];
+            },
+            monthly_table() {
+                let data = [];
+                let allins = this.credit_amount_wm + this.first_fee;
+                let payments = 0;
+                for (let i = 0; i <= this.period; i++) {
+                    let item = [];
+                    let payment = i === 0 ? this.first_fee : this.amount_for_month;
+                    item.id = i+1;
+                    item.payment = payment;
+                    item.balance_b = allins - payments;
+                    payments += payment;
+                    item.balance_a = allins - payments;
+                    item.summary = payments;
+                    item.date = moment().add(i, 'months').format("DD MMM YYYY");
+                    data.push(item);
+                    if (payments >= allins) break;
+                }
+                return data;
+            },
+        },
+        created(){
+            this.getCurrencies();
+        },
+        methods: {
+            round(v, d = 2){
+                if(d<0) return v; else if(d<1) return Math.round(v);
+                let dp = Math.pow(10, d);
+                return Math.round(v * dp) / dp;
+            },
+            getCurrencies(){
+                this.$http.get('https://api.allorigins.win/raw?url=http://cbu.uz/common/json/').then(res => {
+                    let rates = res.data;
+                    //console.log(rates);
+                    if(Array.isArray(rates)) this.currency_data = this.currency_data.concat(rates);
+                });
+            },
+            downloadAsPng() {
+                domtoimage.toPng(this.$refs.forprint).then(function (data) {
+                    var link = document.createElement('a');
+                    link.download = 'export-data.png';
+                    link.href = data;
+                    link.click();
+                })
+                    .catch(function (error) {
+                        console.error('oops, something went wrong!', error);
+                    });
+            },
+            downloadAsPdf() {
+                window.print()
+            },
+            formatPrice(value) {
+                let val = (value/1).toFixed(2).replace('.', ',');
+                return val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")
+            }
+        },
+        watch: {},
+        filters: {
+            round: function(v, d=2) {
+                if(d<0) return v; else if(d<1) return Math.round(v);
+                let dp = Math.pow(10, d);
+                return Math.round(v * dp) / dp;
+            },
+            formatPrice(value) {
+                let val = (value/1).toFixed(2).replace('.', ',');
+                return val.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ")
+            }
+        }
+    })
+</script>
+<script type="text/javascript" src="https://unpkg.com/dom-to-image@2.6.0/dist/dom-to-image.min.js"></script>
+<!--<script type="text/javascript" src="https://unpkg.com/jspdf@latest/dist/jspdf.min.js"></script>-->
+</body>
+</html>
